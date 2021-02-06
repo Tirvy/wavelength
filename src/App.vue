@@ -5,15 +5,13 @@
 </template>
 
 <script>
-
 export default {
-  name: "App",
+  name: 'App',
 
-  components: {
-  },
+  components: {},
 
   data: () => ({
     //
-  })
+  }),
 };
 </script>
