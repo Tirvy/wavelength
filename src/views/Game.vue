@@ -4,7 +4,7 @@
       <v-spacer />
 
       <v-container>
-        <v-stepper value="2">
+        <v-stepper :value="currentStepIndex + 1">
           <v-stepper-header>
             <template v-for="(item, index) in steps">
               <v-divider :key="index" v-if="index > 0"></v-divider>
@@ -12,7 +12,7 @@
               <v-stepper-step
                 :key="item.name"
                 :step="index + 1"
-                :complete="index < currentStep"
+                :complete="index < currentStepIndex"
                 :color="colors[item.color]"
               >
                 {{ item.name }}
@@ -40,22 +40,58 @@
             </v-card>
           </v-col>
           <v-col cols="8">
-            <v-row justify="space-between">
-              <v-col class="text-left subtitle-1">
-                {{ roundInfo.concepts[0] }}
-              </v-col>
-              <v-col class="text-right subtitle-1">
-                {{ roundInfo.concepts[1] }}
-              </v-col>
-            </v-row>
+            <v-card>
+              <v-row justify="space-between">
+                <v-col>
+                  {{ roundInfo.concepts[0] }}
+                </v-col>
+                <v-spacer />
+                <v-col class="text-right">
+                  {{ roundInfo.concepts[1] }}
+                </v-col>
+              </v-row>
 
-            <v-slider :value="guessValue" min="0" max="100" step="2"></v-slider>
+              <v-slider :disabled="!canSetPosition" :value="inputData.position" min="0" max="100" step="2"></v-slider>
 
-            <v-btn> Do the thing </v-btn>
+              <template v-if="canSetClue">
+                <v-row>
+                  <v-col>
+                    <v-text-field v-model="inputData.clue" @keyup.enter="setClue" />
+                  </v-col>
+                  <v-col>
+                    <v-btn @click="setClue"> Set clue </v-btn>
+                  </v-col>
+                </v-row>
+              </template>
+
+              <template v-else-if="canSetPosition">
+                <v-row>
+                  <v-col>
+                    <v-btn @click="setPosition"> Agree on position </v-btn>
+                  </v-col>
+                </v-row>
+              </template>
+
+              <template v-else-if="canSetSide">
+                <v-row>
+                  <v-spacer />
+                  <v-col>
+                    <v-btn @click="setSide(false)"> left </v-btn>
+                  </v-col>
+                  <v-spacer />
+                  <v-col>
+                    <v-btn @click="setSide(true)"> right </v-btn>
+                  </v-col>
+                  <v-spacer />
+                </v-row>
+              </template>
+
+              <v-btn> Do the thing </v-btn>
+            </v-card>
           </v-col>
           <v-col class="text-lg-right">
             <v-card outlined :color="teamColors[1]">
-              <v-card-title> {{ teamColors[1] }} team </v-card-title>
+              <v-card-title class="justify-end"> {{ teamColors[1] }} team </v-card-title>
               <v-list>
                 <v-list-item v-for="item in teamUsers[1]" :key="item">
                   <v-list-item-content>
@@ -82,12 +118,20 @@ export default {
   },
   data() {
     return {
-      currentStep: 3,
       currentColor: 'blue',
       opponentColor: 'red',
       currentSituation: 'Blue team chooses value',
       teamColors: ['blue', 'red'],
-      guessValue: 50,
+      roundData: {
+        clue: null,
+        position: null,
+        side: null,
+      },
+      inputData: {
+        clue: '',
+        position: 50,
+        side: false,
+      },
       teamUsers: [
         ['Ernie', 'Artem', 'Thy Nyamka'],
         ['VBlinchik', 'Janessa', 'incitementfuck'],
@@ -101,6 +145,37 @@ export default {
         opponent: 'red',
       };
     },
+    currentStepIndex() {
+      if (!this.roundData.clue) return 0;
+      if (!this.roundData.position) return 1;
+      if (!this.roundData.side) return 2;
+      return 3;
+    },
+    canSetClue() {
+      return this.currentStep.alias === 'clue' && (this.currentUser.isCaptain || this.currentUser.isAdmin);
+    },
+    canSetPosition() {
+      return (
+        this.currentStep.alias === 'position' &&
+        ((this.currentUser.isActiveTeam && !this.currentUser.isCaptain) || this.currentUser.isAdmin)
+      );
+    },
+    canSetSide() {
+      return this.currentStep.alias === 'side' && (!this.currentUser.isActiveTeam || this.currentUser.isAdmin);
+    },
+    currentUser() {
+      return {
+        isCaptain: true,
+        isActiveTeam: true,
+        isAdmin: true,
+      };
+    },
+    currentStep() {
+      if (!this.roundData.clue) return this.steps[0];
+      if (!this.roundData.position) return this.steps[1];
+      if (!this.roundData.side) return this.steps[2];
+      return this.steps[3];
+    },
     steps() {
       return STEPS;
     },
@@ -108,8 +183,33 @@ export default {
       return {
         concepts: ['Least used color', 'Most used color'],
         activeTeam: 0,
-        clue: undefined,
       };
+    },
+    errors() {
+      let ret = {
+        clue: false,
+      };
+
+      if (!this.inputData.clue || this.inputData.clue.length < 3) {
+        ret.clue = 'Input a clue of 3 or more symbols';
+      }
+
+      return ret;
+    },
+  },
+  methods: {
+    setClue() {
+      if (!this.errors.clue) {
+        this.roundData.clue = this.inputData.clue;
+        this.inputData.clue = '';
+      }
+    },
+    setPosition() {
+      this.roundData.position = this.inputData.position;
+      this.inputData.position = 50;
+    },
+    setSide(value) {
+      this.roundData.side = value;
     },
   },
 };
